@@ -1,20 +1,114 @@
 #pvc_dashboard_container {
-    color: #aaa;
-    min-height: 240px;
-    margin: 0 -4px;
-    text-align: center;
-    position: relative;
+	color: #aaa;
+	min-height: 240px;
+	margin: 0 -4px;
+	text-align: center;
+	position: relative;
 }
-#pvc_dashboard_container .spinner {
+#pvc_dashboard_container .spinner,
+#pvc_crono_area .spinner {
 	position: absolute;
 	left: 50%;
 	top: 40%;
 	margin-left: -10px;
 }
 #pvc_dashboard p.sub {
-    color: #8f8f8f;
-    font-size: 14px;
+	color: #8f8f8f;
+	font-size: 14px;
 	text-align: left;
 	padding-bottom: 3px;
 	border-bottom: 1px solid #ececec;
+}
+#pvc_crono_chart{
+	position: fixed;
+	bottom: 1rem;
+	right: 1rem;
+	background: rgba(255,255,255,.9);
+	top: 3rem;
+	left: 1rem;
+	z-index: 9999;
+	border: 1px solid #eee;
+	/*padding: .5rem .5rem 1rem .5rem;*/
+}
+#pvc_crono_chart h2{
+	font-size: 14px;
+	padding: 8px 12px;
+	border-bottom: 1px solid #eee;
+	margin: 0;
+	font-weight: 400;
+	line-height: 1.4;
+}
+#pvc_crono_chart span.closeDiv{
+	float: right;
+	color: #72777c;
+	width: 36px;
+	height: 36px;
+	margin: 0;
+	padding: 8px 0;
+	border: 0;
+	background: 0 0;
+	cursor: pointer;
+}
+#pvc_crono_chart span.closeDiv:hover{
+	color: #23282d;
+}
+#pvc_crono_chart .pvc_crono_responsive{
+	position: absolute;
+	top: 32px;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	overflow: hidden auto;
+}
+#pvc_crono_chart .pvc_crono_responsive div{
+	padding: .5rem;
+}
+#pvc_crono_chart .pvc_crono_responsive div.form_group {
+	padding: .5rem 1rem;
+}
+#pvc_crono_chart .pvc_crono_responsive .r_chart{
+	position: relative;
+}
+#pvc_crono_chart .pvc_crono_responsive .r_chart,
+#pvc_crono_chart .pvc_crono_responsive .r_control{
+	text-align:center;
+}
+#pvc_crono_chart .legendBullet {
+	width: .6rem;
+	height: .6rem;
+	display: inline-block;
+	border-radius: 50%;
+	margin-right:.1rem;
+	cursor:pointer;
+}
+#pvc_crono_post_ids{display:block;width:100%;}
+#pvc_crono_leyend{font-size: 10px;line-height: 11px;}
+#pvc_crono_control_form{display: block;align-items: center}
+@media (min-width: 768px) {
+	#pvc_crono_chart .pvc_crono_responsive{
+		overflow: hidden hidden;
+	}
+	#pvc_crono_chart .pvc_crono_responsive div{
+		box-sizing: border-box;
+	}
+	#pvc_crono_chart .pvc_crono_responsive .r_chart{
+		width: 80%;
+		height: 80%;
+		float: left;
+		overflow-y: hidden;
+	}
+	#pvc_crono_chart .pvc_crono_responsive .r_leyend{
+		float: right;
+		width: 20%;
+		height: 80%;
+		overflow: hidden auto;
+	}
+	#pvc_crono_chart .pvc_crono_responsive .r_control{
+		float: left;
+		width: 100%;
+		height: 20%;
+	}
+	#pvc_crono_control_form{
+		display: inline-flex;
+	}
 }
