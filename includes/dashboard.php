@@ -76,10 +76,14 @@ class Post_Views_Counter_Dashboard {
 									?>
 								</select>
 							</div>
-							<div class="form_group form-field">
-								<input type="checkbox" id="pvc_crono_post_lang-1" name="pvc_crono_post_lang[]" value="es" checked> <label for="pvc_crono_post_lang-1"> <img src="https://www.alborum.com/lang/flags/es.png" alt="es-"> ES</label><br>
-								<input type="checkbox" id="pvc_crono_post_lang-2" name="pvc_crono_post_lang[]" value="pt" checked> <label for="pvc_crono_post_lang-2"><img src="https://www.alborum.com/lang/flags/pt.png" alt="pt-"> PT</label>
-							</div>
+							<?php if( function_exists('pll_get_post_language') ){ 
+								$usedLangs = pll_languages_list();
+								?><div class="form_group form-field" id="pvc_crono_post_langs"><?php
+								foreach( $usedLangs as $i=>$lang ){
+									?><input type="checkbox" id="pvc_crono_post_lang-<?php echo $i; ?>" name="pvc_crono_post_lang[]" value="<?php echo $lang; ?>" checked> <label for="pvc_crono_post_lang-<?php echo $i; ?>"> <img src="<?php echo plugins_url().'/polylang/flags/'.$lang.'.png'; ?>" alt="<?php echo $lang; ?>-"> <?php echo $lang; ?></label><br><?php
+								}
+								?></div>
+							<?php } ?>
 							<div class="form_group form-field" style="align-items: center;display: inherit;">
 								<label for="pvc_crono_post_period" style="margin-right: 4px;"><?php _e( 'Period:', 'post-views-counter' ); ?></label> 
 								<input id="pvc_crono_post_period" type="text" style="width:auto;" name="pvc_crono_post_period" value="">
@@ -574,15 +578,12 @@ class Post_Views_Counter_Dashboard {
 		$period = new DatePeriod( $periodDates[0], new DateInterval('P1D'), $periodDates[1] );
 		$cloneToLine = iterator_count($period) === 1 ? true : false ;
 
-//$data['debug']['opts'] = $request;
-
 		// Define the post list to show
 		$selected_post = array();
 
 		if( $request['pvc_crono_post_type'] == 'day' ){
 			// Best post day by day
 			foreach( $period as $current){
-				//$selected = $wpdb->get_results( "SELECT * FROM ".$wpdb->prefix."post_views WHERE period = '".$current->format("Ymd")."' ORDER BY count DESC LIMIT ".$request['pvc_crono_post_amount'], ARRAY_A, 0 );
 				$selected = $wpdb->get_results( "SELECT * FROM ".$wpdb->prefix."post_views WHERE period = '".$current->format("Ymd")."' ORDER BY count DESC", ARRAY_A, 0 );
 				$counter = 0;
 				foreach( $selected as $post){
@@ -607,7 +608,6 @@ class Post_Views_Counter_Dashboard {
 			foreach( explode(',',$request['pvc_crono_post_ids']) as $inputs){
 				$get = $this->auto_extract_preg_match($inputs);
 				if ( isset($get[1]) && is_numeric($get[1]) ){
-//$data['debug']['post'][] = $get[1];
 					$selected_post[] = $get[1];
 				}
 			}
@@ -658,7 +658,6 @@ class Post_Views_Counter_Dashboard {
 			$s_period = new DatePeriod( $periodDates[0], new DateInterval( $s_laps[ $request['pvc_crono_post_interval'] ] ), $periodDates[1] );
 
 			foreach( $s_period as $date_current ){
-//$data['debug']['dates'][] = $date_current->format('d m Y');
 				$data['data']['datasets'][$i]['data'][] = pvc_get_views(
 					array(
 						'fields'		=> 'views',
