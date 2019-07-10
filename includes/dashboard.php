@@ -70,7 +70,7 @@ class Post_Views_Counter_Dashboard {
 									<option value="1" >1</option>
 									<option value="5" selected>5</option>
 									<?php
-									for($i=10;$i<30;$i+=5){
+									for($i=10;$i<=50;$i+=10){
 										?><option value="<?php echo $i; ?>"><?php echo $i; ?></option><?php 
 									}
 									?>
@@ -588,7 +588,7 @@ class Post_Views_Counter_Dashboard {
 				$counter = 0;
 				foreach( $selected as $post){
 					if( function_exists('pll_get_post_language') ){
-						if( in_array(pll_get_post_language($post['id']),$request['pvc_crono_post_lang']) ){
+						if( in_array(pll_get_post_language($post['id']),$request['pvc_crono_post_lang']) || pll_get_post_language($post['id'])=='' ){
 							$selected_post[] = $post['id'];
 							$counter++;
 						}
@@ -607,21 +607,23 @@ class Post_Views_Counter_Dashboard {
 		}elseif( $request['pvc_crono_post_type'] == 'custom'){
 			foreach( explode(',',$request['pvc_crono_post_ids']) as $inputs){
 				$get = $this->auto_extract_preg_match($inputs);
-				if ( isset($get[1]) && is_numeric($get[1]) ){
+				if( isset($get[1]) && is_numeric($get[1]) ){
 					$selected_post[] = $get[1];
 				}
 			}
 			$selected_post = array_unique($selected_post, SORT_NUMERIC);
 
-		}elseif( $request['pvc_crono_post_type'] == 'all'){
+		}elseif( $request['pvc_crono_post_type'] == 'all' ){
 			// All times best post
-			$posts = pvc_get_most_viewed_posts(
-				array(
-					'posts_per_page'	=> $request['pvc_crono_post_amount'],
-					'order'				=> 'desc',
-					'lang'				=> $request['pvc_crono_post_lang']
-				)
+			$tha_args = array(
+				'post_type'			=> Post_Views_Counter()->options['general']['post_types_count'],
+				'posts_per_page'	=> $request['pvc_crono_post_amount'],
+				'order'				=> 'desc',
 			);
+			if( function_exists('pll_get_post_language') ){
+				$tha_args['lang'] = $request['pvc_crono_post_lang'];
+			}
+			$posts = pvc_get_most_viewed_posts($tha_args);
 			if( !empty($posts) ){
 				foreach( $posts as $i=>$post ){
 					setup_postdata($post);
@@ -639,11 +641,22 @@ class Post_Views_Counter_Dashboard {
 
 		// Get views data from selected posts
 		foreach( $selected_post as $i=>$post_id ){
-			$data['data']['datasets'][$i]['label'] = $post_id !== 'total' ? get_the_title($post_id).'('.pvc_get_post_views($post_id).')' : __('Total','post-views-counter');
+			if( $post_id !== 'total' ){
+				$title = get_the_title($post_id);
+				$views = pvc_get_post_views($post_id);
+				$leyendTo = '<a title="Edit" target="_blank" href="'.admin_url('post.php?post=').$post_id.'&action=edit"><span style="font-size:12px;height:10px;width:10px;" class="dashicons dashicons-edit"></span></a>';
+
+				$labelTo = $title.'('.$views.')';
+			}else{
+				$leyendTo = $labelTo = __('Total','post-views-counter');
+			}
+			
+			$data['data']['datasets'][$i]['label'] = $labelTo;
+			$data['data']['datasets'][$i]['leyend'] = $leyendTo;
 			$data['data']['datasets'][$i]['post_id'] = $post_id;
 			$data['data']['datasets'][$i]['data'] = array();
 
-			$color = $this->hex2rgb(dechex(rand(0x000000, 0xFFFFFF)));
+			$color = $this->hex2rgb(dechex(rand(0x000000,0xFFFFFF)));
 			$data['data']['datasets'][$i]['backgroundColor'] = 'rgba('.$color['r'].','.$color['g'].','.$color['b'].',0.001)';
 			$data['data']['datasets'][$i]['borderColor'] = 'rgba('.$color['r'].','.$color['g'].','.$color['b'].',1)';
 			$data['data']['datasets'][$i]['pointBorderColor'] = 'rgba('.$color['r'].','.$color['g'].','.$color['b'].',0.3)';
@@ -672,6 +685,24 @@ class Post_Views_Counter_Dashboard {
 					)
 				);
 			}
+			
+			if( $post_id == 'total' ){
+				$regr = $this->linearRegression_fx( $data['data']['datasets'][$i]['data'] );
+				$var = round((($regr[count($regr)-1]-$regr[0])/count($regr)), 1);
+				$j = $i+1;
+				$sufix = ' Regression ';
+				$data['data']['datasets'][$j]['label'] = $labelTo.$sufix.$var.'%';
+				$data['data']['datasets'][$j]['leyend'] = $leyendTo.$sufix;
+				$data['data']['datasets'][$j]['post_id'] = $post_id.$sufix;
+				//$data['data']['datasets'][$j]['data'] = $this->linearRegression_fx( $data['data']['datasets'][$i]['data'] );
+				$data['data']['datasets'][$j]['data'] = $regr;
+				$color = array('r'=>211,'g'=>22,'b'=>22);
+				$data['data']['datasets'][$j]['backgroundColor'] = 'rgba('.$color['r'].','.$color['g'].','.$color['b'].',0.001)';
+				$data['data']['datasets'][$j]['borderColor'] = 'rgba('.$color['r'].','.$color['g'].','.$color['b'].',1)';
+				$data['data']['datasets'][$j]['pointBorderColor'] = 'rgba('.$color['r'].','.$color['g'].','.$color['b'].',0.3)';
+				$data['data']['datasets'][$j]['pointBackgroundColor'] = 'rgba('.$color['r'].','.$color['g'].','.$color['b'].',1)';
+			}
+			
 		}
 
 		// Get label points for the data
@@ -851,5 +882,27 @@ class Post_Views_Counter_Dashboard {
 		$regex = $delimiter . preg_quote($tag_start, $delimiter) . '(.*?)' . preg_quote($tag_end, $delimiter) . $delimiter . 's';
 		preg_match($regex, $str, $out);
 		return $out;
+	}
+	
+	public function linearRegression_fx( $data = array() ){
+		$x2=0;$y=0;$x=0;$xy=0;$r;
+		$n = count($data);
+		for( $i=0 ; $i < $n ; $i++ ){
+			//Calculo de terminos
+			$x2 += $i*$i;
+			$y  += $data[$i];
+			$x  += $i;
+			$xy += $data[$i]*$i;
+		}
+		//Coeficiente parcial de regresion
+		$b = ( $n*$xy - $x*$y ) / ( $n*$x2 - $x*$x );
+		//Calculo del intercepto
+		$a = ( $y - $b*$x ) / $n;
+		//Recta tendencial
+		//y=a+bx
+		for( $i = 0 ; $i < $n ; $i++ ){
+			$r[$i] = $a+$b*$i;
+		}
+		return $r;
 	}
 }
