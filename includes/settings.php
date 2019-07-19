@@ -86,6 +86,12 @@ class Post_Views_Counter_Settings {
 				'key'	 => 'post_views_counter_settings_display',
 				'submit' => 'save_pvc_display',
 				'reset'	 => 'reset_pvc_display'
+			),
+			'develop'	 => array(
+				'name'	 => __( 'Developer', 'post-views-counter' ),
+				'key'	 => 'post_views_counter_settings_develop',
+				'submit' => '',
+				'reset'	 => ''
 			)
 		);
 
@@ -243,6 +249,107 @@ class Post_Views_Counter_Settings {
 		add_settings_field( 'pvc_position', __( 'Position', 'post-views-counter' ), array( $this, 'position' ), 'post_views_counter_settings_display', 'post_views_counter_settings_display' );
 		add_settings_field( 'pvc_display_style', __( 'Display Style', 'post-views-counter' ), array( $this, 'display_style' ), 'post_views_counter_settings_display', 'post_views_counter_settings_display' );
 		add_settings_field( 'pvc_icon_class', __( 'Icon Class', 'post-views-counter' ), array( $this, 'icon_class' ), 'post_views_counter_settings_display', 'post_views_counter_settings_display' );
+		
+		// recalculate tab
+		add_settings_section( 'post_views_counter_settings_develop', __( 'Recalculate post views', 'post-views-counter' ), array( $this, 'post_views_recalculate' ), 'post_views_counter_settings_develop' );
+
+	}
+
+	/**
+	 * Post views recalculate option.
+	 */
+	public function post_views_recalculate() {
+		if( isset($_GET['action']) && isset($_GET['id']) && $_GET['action'] == 'fix' ){
+			$this->set_total_post_views($_GET['id']);
+		}
+		if( isset($_GET['show']) && isset($_GET['id']) && $_GET['show'] == 'detail' ){
+			$id =(int)$_GET['id'];
+			$data = $this->suma_post_views($id,false);
+			$by_types;
+			foreach( $data as $unit ){
+					$by_types[(int)$unit['type']][] = array(
+						'period' => $unit['period'],
+						'count' => $unit['count']
+					);
+			}
+			ksort($by_types);
+			echo '<h2>['.$id.']'.get_the_title($id).'('.$this->suma_post_views($id).') '.(($this->suma_post_views($id)!=$by_types[4][0]['count'])?'<a href="'.$_SERVER['SCRIPT_NAME'].'?page=post-views-counter&tab=develop&id='.$id.'&action=fix&show=detail"><span class="dashicons dashicons-admin-tools"></span></a>':'').'</h2>';
+			$date_first = new DateTime($by_types[0][0]['period']);
+			$date_today = new DateTime();
+			$period = new DatePeriod( $date_first, new DateInterval('P1D'), $date_today );
+			echo '<h3>'.$date_first->format('d/m/Y').' to '.$date_today->format('d/m/Y').'</h3>';
+			$tw_count = 0; $ww_count = 0; $mw_count = 0; $yw_count = 0;
+			$r0_index = 0; $r1_index = 0; $r2_index = 0; $r3_index = 0;
+			echo '<table class="striped" style="width:100%;text-align: center;">';
+			echo '<tr><td>Date/Reg.</td><td>Day(0)</td><td>Week(1)</td><td>Month(2)</td><td>Year(3)</td><td>Total(4)</td></tr>';
+			foreach( $period as $date ){
+				if( $date->format('Ymd') == $by_types[0][$r0_index]['period'] ){
+					$tw_count += $by_types[0][$r0_index]['count'];
+					$ww_count += $by_types[0][$r0_index]['count'];
+					$mw_count += $by_types[0][$r0_index]['count'];
+					$yw_count += $by_types[0][$r0_index]['count'];
+					echo '<tr><td>'.$date->format('d/m/Y (W) - Ymd').'</td><td>'.$by_types[0][$r0_index]['count'].'</td><td></td><td></td><td></td><td>'.$tw_count.'</td></tr>';
+
+					$r0_index++;
+					$next_day = new DateTime($by_types[0][$r0_index]['period']);
+
+				}
+				if( $date->format('YW') == $by_types[1][$r1_index]['period'] && $date->format('YW') != $next_day->format('YW') ){
+					echo '<tr style="background-color: #ddd;"><td>'.$date->format('m/Y (W) - YW').'</td><td></td><td>'.( $by_types[1][$r1_index]['count'] != $ww_count ? $ww_count.'<b style="color:red;">('.$by_types[1][$r1_index]['count'].')</b>' :$ww_count).'</td><td></td><td></td><td>'.$tw_count.'</td></tr>';
+
+					$ww_count = 0;
+					$r1_index++;
+					$next_day = new DateTime($by_types[0][$r0_index]['period']);
+				}
+				if( $date->format('Ym') == $by_types[2][$r2_index]['period'] && $date->format('Ym') != $next_day->format('Ym') ){
+					echo '<tr style="background-color: #bbb;" ><td>'.$date->format('m/Y - Ym').'</td><td></td><td></td><td>'.( $by_types[2][$r2_index]['count'] != $mw_count ? $mw_count.'<b style="color:red;">('.$by_types[2][$r2_index]['count'].')</b>' :$mw_count).'</td><td></td><td>'.$tw_count.'</td></tr>';
+
+					$mw_count = 0;
+					$r2_index++;
+					$next_day = new DateTime($by_types[0][$r0_index]['period']);
+				}
+				if( ($date->format('Y') == $by_types[3][$r3_index]['period'] && $date->format('Y') != $next_day->format('Y')) || (int)$date->format('Ymd') == (int)$date_today->format('Ymd') ){
+					echo '<tr style="background-color: #999;" ><td>'.$date->format('Y').'</td><td></td><td></td><td></td><td>'.( $by_types[3][$r3_index]['count'] != $yw_count ? $yw_count.'<b style="color:red;">('.$by_types[3][$r3_index]['count'].')</b>' :$yw_count).'</td><td>'.$tw_count.'</td></tr>';
+
+					$yw_count = 0;
+					$r3_index++;
+				}
+			}
+			echo '<tr style="background-color: #000;color:#fff;" ><td>Total</td><td></td><td></td><td></td><td></td><td><b>'.( $by_types[4][0]['count'] != $tw_count ? $tw_count.'<span style="color:red;">('.$by_types[4][0]['count'].')</span>' :$tw_count).'</b></td></tr>';
+			echo '</table><br>';
+			
+			echo '<h4>Raw Data</h4>';
+			echo '<table class="striped" style="width:100%;">';
+			foreach( $by_types as $type => $items ){
+				foreach($items as $item){
+					echo '<tr><td>'.$type.'</td><td>'.$item['period'].'</td><td>'.$item['count'].'</td></tr>';
+				}
+			}
+			echo '</table><br>';
+		}else{
+			echo '<h2>'.__('Post Views Integrity ', 'post-views-counter').((isset($_GET['show']) && $_GET['show'] == 'all') ? '<a title="Contract" href="'.$_SERVER['SCRIPT_NAME'].'?page=post-views-counter&tab=develop"><span class="dashicons dashicons-editor-contract"></span></a>' : '<a title="Expand" href="'.$_SERVER['SCRIPT_NAME'].'?page=post-views-counter&tab=develop&show=all"><span class="dashicons dashicons-editor-expand"></span></a>').'</h2>';
+			foreach( $this->post_types as $post_type => $post_type_name ) {
+				$ids = get_posts(array(
+					'fields'			=> 'ids', // Only get post IDs
+					'posts_per_page'	=> -1,
+					'post_type'			=> $post_type
+				));
+				echo '<h3>'.$post_type_name.'('.count($ids).')</h3>';
+				
+				echo '<table class="striped" style="width:100%;border:1px solid #ccc;text-align:center;border-collapse:collapse;"><thead><th>ID</th><th>Real</th><th>Stored</th><th>Detail</th><th>Fix it</th></thead><tbody>';
+				$bad_count = 0;
+				foreach( $ids as $post_id ){
+					$real = $this->suma_post_views($post_id);
+					$stored = pvc_get_post_views($post_id,false);
+					if( $real != $stored || ( isset($_GET['show']) && $_GET['show'] == 'all' )){
+						echo '<tr><td>'.$post_id.'</td><td>'.$real.'</td><td>'.$stored.'</td><td><a href="'.$_SERVER['SCRIPT_NAME'].'?page=post-views-counter&tab=develop&id='.$post_id.'&show=detail"><span class="dashicons dashicons-visibility"></span></a></td><td>'.($real != $stored?'<a href="'.$_SERVER['SCRIPT_NAME'].'?page=post-views-counter&tab=develop&id='.$post_id.'&action=fix"><span class="dashicons dashicons-admin-tools"></span></a>':'').'</td></tr>';
+						$bad_count++;
+					}
+				}
+				echo '</tbody></table>';
+				echo '<h4>'.($bad_count > 0 ? $bad_count.__( ' showed', 'post-views-counter' ) : __( 'No fix needed', 'post-views-counter' )).'</h4>';
+			}
+		}
 	}
 
 	/**
@@ -263,14 +370,22 @@ class Post_Views_Counter_Settings {
 	/**
 	 * Post views recalculate and values.
 	 */
-	public function suma_post_views($post_id){
+	/**
+	 * Post views recalculate and values.
+	 */
+	public function suma_post_views($post_id, $total = true ){
 		global $wpdb;
-		$selected = $wpdb->get_results( "SELECT * FROM ".$wpdb->prefix."post_views WHERE id = '".$post_id."' AND type = 0 ORDER BY period ASC", ARRAY_A, 0 );
-		$total = 0;
-		foreach( $selected as $unit ){
-			$total += (int)$unit['count'];
+		if($total){
+			$selected = $wpdb->get_results( "SELECT * FROM ".$wpdb->prefix."post_views WHERE id = '".$post_id."' AND type = 0 ORDER BY period ASC", ARRAY_A, 0 );
+			$total = 0;
+			foreach( $selected as $unit ){
+				$total += (int)$unit['count'];
+			}
+			return $total;
+		}else{
+			$selected = $wpdb->get_results( "SELECT * FROM ".$wpdb->prefix."post_views WHERE id = '".$post_id."' ORDER BY period ASC", ARRAY_A, 0 );
+			return $selected;
 		}
-		return $total;
 	}
 
 	/**
