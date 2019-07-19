@@ -246,6 +246,53 @@ class Post_Views_Counter_Settings {
 	}
 
 	/**
+	 * Set the total views for a post counting day by day.
+	 */
+	public function set_total_post_views($post_id){
+		global $wpdb;
+		$count = $this->suma_post_views($post_id);
+		return $wpdb->query(
+			$wpdb->prepare( "
+				INSERT INTO " . $wpdb->prefix . "post_views (id, type, period, count)
+				VALUES (%d, %d, %s, %d)
+				ON DUPLICATE KEY UPDATE count = %d", $post_id, 4, 'total', $count, $count
+			)
+		);
+	}
+
+	/**
+	 * Post views recalculate and values.
+	 */
+	public function suma_post_views($post_id){
+		global $wpdb;
+		$selected = $wpdb->get_results( "SELECT * FROM ".$wpdb->prefix."post_views WHERE id = '".$post_id."' AND type = 0 ORDER BY period ASC", ARRAY_A, 0 );
+		$total = 0;
+		foreach( $selected as $unit ){
+			$total += (int)$unit['count'];
+		}
+		return $total;
+	}
+
+	/**
+	 * Post views integrity.
+	 */
+	public function check_post_views_integrity(){
+		foreach( $this->post_types as $post_type => $post_type_name ){
+			$ids = get_posts(array(
+				'fields'			=> 'ids',
+				'posts_per_page'	=> -1,
+				'post_type'			=> $post_type
+			));
+			foreach( $ids as $post_id ){
+				if( $this->suma_post_views($post_id) != pvc_get_post_views($post_id, false) ){
+					if( !$this->set_total_post_views($post_id) ) return false;
+				}
+			}
+		}
+		return true;
+	}
+
+	/**
 	 * Post views label option.
 	 */
 	public function post_views_label() {
@@ -455,12 +502,14 @@ class Post_Views_Counter_Settings {
 	public function wp_postviews() {
 		echo '
 	<div id="pvc_wp_postviews">
-	    <fieldset>
+		<fieldset>
 			<input type="submit" class="button button-secondary" name="post_views_counter_import_wp_postviews" value="' . __( 'Import views', 'post-views-counter' ) . '"/> <label class="cb-checkbox"><input id="pvc-wp-postviews" type="checkbox" name="post_views_counter_import_wp_postviews_override" value="1" />' . __( 'Override existing views data.', 'post-views-counter' ) . '</label>
 			<p class="description">' . __( 'Import post views data from WP-PostViews plugin.', 'post-views-counter' ) . '</p>
 			<input type="submit" class="button button-secondary" name="post_views_counter_reset_views" value="' . __( 'Delete views', 'post-views-counter' ) . '"/>
 			<p class="description">' . __( 'Delete ALL the existing post views data.', 'post-views-counter' ) . '</p>
-	    </fieldset>
+			<input type="submit" class="button button-secondary" name="post_views_counter_recalculate_views" value="' . __( 'Recalculate views', 'post-views-counter' ) . '"/>
+			<p class="description">' . __( 'Recalculate total post views form DTD data.', 'post-views-counter' ) . '</p>
+		</fieldset>
 	</div>';
 	}
 
@@ -617,6 +666,12 @@ class Post_Views_Counter_Settings {
 				add_settings_error( 'reset_post_views', 'reset_post_views', __( 'All existing data deleted succesfully.', 'post-views-counter' ), 'updated' );
 			else
 				add_settings_error( 'reset_post_views', 'reset_post_views', __( 'Error occurred. All existing data were not deleted.', 'post-views-counter' ), 'error' );
+		} elseif ( isset( $_POST['post_views_counter_recalculate_views'] ) ) {
+			if( $this->check_post_views_integrity() ){
+				add_settings_error( 'recalculate_post_views', 'recalculate_post_views', __( 'All wrong data fixed succesfully.', 'post-views-counter' ), 'updated' );
+			}else{
+				add_settings_error( 'recalculate_post_views', 'recalculate_post_views', __( 'Error occurred. Wrong data were not fixed.', 'post-views-counter' ), 'error' );
+			}
 		} elseif ( isset( $_POST['save_pvc_general'] ) ) {
 			// post types count
 			if ( isset( $input['post_types_count'] ) ) {
